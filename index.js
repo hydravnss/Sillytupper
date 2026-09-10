@@ -3,7 +3,6 @@ import { autoSelectPersona } from '../../../personas.js';
 import { power_user } from '../../../power-user.js';
 import { sendTextareaMessage } from '../../../../script.js';
 
-
 const extensionName = 'SillyTupper';
 
 let isProcessing = false;
@@ -25,12 +24,12 @@ function loadSettings() {
 
 
 /* =========================================================
-   RESOLVE PERSONA
+   FIND PERSONA
    ========================================================= */
 
-function resolvePersonaName(input) {
+function findPersona(shortName) {
 
-    const search = String(input).trim().toLowerCase();
+    const search = shortName.trim().toLowerCase();
 
     if (!search) {
         return null;
@@ -39,30 +38,35 @@ function resolvePersonaName(input) {
     const personas = power_user.personas;
 
     if (!personas) {
-        console.error('[SillyTupper] power_user.personas est introuvable.');
+        console.error('[SillyTupper] Personas indisponibles.');
         return null;
     }
 
-    /*
-     * 1. Nom complet exact
-     */
+    for (const persona of Object.values(personas)) {
 
-    for (const value of Object.values(personas)) {
+        const name = String(persona).trim();
 
-        const name = String(value).trim();
+        if (!name) {
+            continue;
+        }
+
+        /*
+         * NOM COMPLET :
+         *
+         * Heinrich Himmler
+         */
 
         if (name.toLowerCase() === search) {
             return name;
         }
-    }
 
-    /*
-     * 2. Prénom uniquement
-     */
-
-    for (const value of Object.values(personas)) {
-
-        const name = String(value).trim();
+        /*
+         * PRÉNOM :
+         *
+         * Heinrich
+         * ↓
+         * Heinrich Himmler
+         */
 
         const firstName = name
             .split(/\s+/)[0]
@@ -83,28 +87,32 @@ function resolvePersonaName(input) {
 
 function parseTupperMessage(text) {
 
-    const match = text.match(/^([^:\n]{1,60}):\s*([\s\S]*)$/);
+    if (!text) {
+        return null;
+    }
+
+    const match = text.match(/^([^:\n]+):\s*([\s\S]+)$/);
 
     if (!match) {
         return null;
     }
 
-    const personaName = match[1].trim();
+    const name = match[1].trim();
     const message = match[2].trim();
 
-    if (!personaName || !message) {
+    if (!name || !message) {
         return null;
     }
 
     return {
-        personaName,
+        name,
         message,
     };
 }
 
 
 /* =========================================================
-   PROCESS
+   SEND
    ========================================================= */
 
 async function processTupperMessage() {
@@ -131,18 +139,11 @@ async function processTupperMessage() {
         return false;
     }
 
-    const resolvedName = resolvePersonaName(
-        parsed.personaName
-    );
+    const personaName = findPersona(parsed.name);
 
-    /*
-     * Pas une Persona :
-     * on laisse SillyTavern fonctionner normalement.
-     */
-
-    if (!resolvedName) {
+    if (!personaName) {
         console.log(
-            `[SillyTupper] Aucune Persona pour "${parsed.personaName}"`
+            `[SillyTupper] Persona "${parsed.name}" introuvable.`
         );
 
         return false;
@@ -153,35 +154,33 @@ async function processTupperMessage() {
     try {
 
         console.log(
-            `[SillyTupper] ${parsed.personaName} → ${resolvedName}`
+            `[SillyTupper] ${parsed.name} → ${personaName}`
         );
 
         /*
-         * EXACTEMENT la fonction qui fonctionnait
-         * dans ton ancien code.
+         * Sélectionne la Persona.
          */
 
         const selected = await autoSelectPersona(
-            resolvedName
+            personaName
         );
 
         if (!selected) {
-
             console.error(
-                `[SillyTupper] Impossible de sélectionner "${resolvedName}"`
+                `[SillyTupper] Impossible de sélectionner ${personaName}`
             );
 
             return false;
         }
 
         /*
-         * Supprime :
+         * ENLÈVE LE PRÉNOM DU MESSAGE.
          *
-         * Narrator:
+         * Heinrich: Bonjour
          *
-         * et garde uniquement :
+         * devient :
          *
-         * test
+         * Bonjour
          */
 
         textarea.value = parsed.message;
@@ -193,16 +192,21 @@ async function processTupperMessage() {
         );
 
         /*
-         * Laisse ST appliquer la Persona.
+         * Laisse SillyTavern appliquer
+         * le changement de Persona.
          */
 
         await new Promise(resolve => setTimeout(resolve, 0));
 
         /*
-         * Envoi natif ST.
+         * Envoie le message.
          */
 
         await sendTextareaMessage();
+
+        console.log(
+            `[SillyTupper] Envoyé en tant que ${personaName}`
+        );
 
         return true;
 
@@ -271,11 +275,11 @@ function setupKeyboardListener() {
             }
 
             /*
-             * IMPORTANT :
-             * on vérifie le prénom AVANT de bloquer ST.
+             * On ne bloque l'envoi que si le prénom
+             * correspond réellement à une Persona.
              */
 
-            if (!resolvePersonaName(parsed.personaName)) {
+            if (!findPersona(parsed.name)) {
                 return;
             }
 
@@ -323,7 +327,7 @@ function setupSendButtonListener() {
                 return;
             }
 
-            if (!resolvePersonaName(parsed.personaName)) {
+            if (!findPersona(parsed.name)) {
                 return;
             }
 
@@ -352,17 +356,7 @@ function initialize() {
     setupSendButtonListener();
 
     console.log(
-        '[SillyTupper] Extension chargée.'
-    );
-
-    /*
-     * Vérification immédiate pour savoir si
-     * SillyTavern nous donne bien les Personas.
-     */
-
-    console.log(
-        '[SillyTupper] Personas :',
-        power_user.personas
+        '[SillyTupper] Chargé.'
     );
 }
 
