@@ -3,7 +3,6 @@ import { power_user } from '../../../power-user.js';
 import { setUserAvatar } from '../../../personas.js';
 import { sendTextareaMessage } from '../../../../script.js';
 
-
 const extensionName = 'SillyTupper';
 
 let isProcessing = false;
@@ -17,10 +16,15 @@ function loadSettings() {
     if (!extension_settings[extensionName]) {
         extension_settings[extensionName] = {};
     }
+}
 
-    if (typeof extension_settings[extensionName].enabled !== 'boolean') {
-        extension_settings[extensionName].enabled = true;
-    }
+
+/* =========================================================
+   FIND TEXTAREA
+   ========================================================= */
+
+function getTextarea() {
+    return document.querySelector('#send_textarea');
 }
 
 
@@ -28,46 +32,26 @@ function loadSettings() {
    FIND PERSONA BY FIRST NAME
    ========================================================= */
 
-function findPersonaByFirstName(name) {
-    if (!power_user?.personas) {
+function findPersonaByFirstName(firstName) {
+    const personas = power_user?.personas;
+
+    if (!personas || typeof personas !== 'object') {
+        console.warn('[SillyTupper] Aucune Persona trouvée.');
         return null;
     }
 
-    const target = String(name)
-        .trim()
-        .toLowerCase();
+    const wanted = firstName.trim().toLowerCase();
 
-    if (!target) {
-        return null;
-    }
-
-    /*
-     * Parcourt toutes les Personas.
-     *
-     * Exemple :
-     *
-     * "Wilhelm Burgdorf"
-     *
-     * devient :
-     *
-     * "wilhelm"
-     */
-
-    for (const [avatarId, personaName] of Object.entries(
-        power_user.personas
-    )) {
-
-        if (!personaName) {
-            continue;
-        }
+    for (const [avatarId, personaName] of Object.entries(personas)) {
+        if (!personaName) continue;
 
         const fullName = String(personaName).trim();
+        const firstNameOfPersona = fullName.split(/\s+/)[0].toLowerCase();
 
-        const firstName = fullName
-            .split(/\s+/)[0]
-            .toLowerCase();
-
-        if (firstName === target) {
+        if (firstNameOfPersona === wanted) {
+            console.log(
+                `[SillyTupper] Persona trouvée : ${fullName} (${avatarId})`
+            );
 
             return {
                 avatarId,
@@ -76,39 +60,31 @@ function findPersonaByFirstName(name) {
         }
     }
 
+    console.log(
+        `[SillyTupper] Aucune Persona correspondant à "${firstName}".`
+    );
+
     return null;
 }
 
 
 /* =========================================================
-   PARSE TUPPER MESSAGE
+   PARSE MESSAGE
    ========================================================= */
 
 function parseTupperMessage(text) {
-    if (!text) {
-        return null;
-    }
+    if (!text) return null;
 
-    /*
-     * Format :
-     *
-     * Wilhelm: Bonjour
-     * Narrator: Bonjour
-     * Heinrich: Bonjour
-     */
-
-    const match = text.match(
-        /^([^:\n]{1,60}):\s*([\s\S]*)$/
-    );
+    const match = text.match(/^([^:\n]{1,60}):\s*([\s\S]*)$/);
 
     if (!match) {
         return null;
     }
 
     const personaName = match[1].trim();
-    const message = match[2].trim();
+    const message = match[2];
 
-    if (!personaName || !message) {
+    if (!personaName || !message.trim()) {
         return null;
     }
 
@@ -120,146 +96,89 @@ function parseTupperMessage(text) {
 
 
 /* =========================================================
-   PROCESS TUPPER MESSAGE
+   PROCESS MESSAGE
    ========================================================= */
 
 async function processTupperMessage() {
+    if (isProcessing) return;
 
-    if (isProcessing) {
-        return false;
-    }
-
-    if (!extension_settings[extensionName]?.enabled) {
-        return false;
-    }
-
-    const textarea = document.getElementById(
-        'send_textarea'
-    );
+    const textarea = getTextarea();
 
     if (!textarea) {
-        console.warn(
-            '[SillyTupper] send_textarea introuvable.'
-        );
-
-        return false;
+        console.warn('[SillyTupper] send_textarea introuvable.');
+        return;
     }
 
     const originalText = textarea.value;
-
-    if (!originalText.trim()) {
-        return false;
-    }
-
-    const parsed = parseTupperMessage(
-        originalText
-    );
+    const parsed = parseTupperMessage(originalText);
 
     if (!parsed) {
-        return false;
+        return;
     }
 
-    /*
-     * Recherche de la Persona.
-     */
-
-    const persona = findPersonaByFirstName(
-        parsed.personaName
-    );
-
-    /*
-     * Si aucune Persona ne correspond,
-     * on laisse SillyTavern fonctionner normalement.
-     */
+    const persona = findPersonaByFirstName(parsed.personaName);
 
     if (!persona) {
-
-        console.log(
-            `[SillyTupper] Aucune Persona trouvée pour "${parsed.personaName}".`
-        );
-
-        return false;
+        return;
     }
 
     isProcessing = true;
 
     try {
-
         console.log(
-            `[SillyTupper] Persona trouvée : "${persona.fullName}"`
+            `[SillyTupper] Changement vers "${persona.fullName}"...`
         );
+
+        /* Changer la Persona */
+        setUserAvatar(persona.avatarId, {
+            toastPersonaNameChange: false,
+        });
 
         /*
-         * Sélectionne directement la Persona
-         * avec son avatar ID unique.
+         * Remplacer le contenu de la zone de texte
+         * Narrator: test
+         * devient
+         * test
          */
-
-        await setUserAvatar(
-            persona.avatarId,
-            {
-                toastPersonaNameChange: true,
-            }
-        );
-
-        console.log(
-            `[SillyTupper] Persona activée : "${persona.fullName}"`
-        );
-
-        /*
-         * Retire le préfixe.
-         *
-         * Wilhelm: Bonjour
-         *
-         * devient :
-         *
-         * Bonjour
-         */
-
         textarea.value = parsed.message;
 
-        /*
-         * Informe SillyTavern du changement.
-         */
-
+        /* Informer SillyTavern du changement */
         textarea.dispatchEvent(
             new Event('input', {
                 bubbles: true,
             })
         );
 
-        /*
-         * Laisse SillyTavern mettre à jour
-         * la Persona avant l'envoi.
-         */
-
-        await new Promise(
-            resolve => setTimeout(resolve, 0)
+        textarea.dispatchEvent(
+            new Event('change', {
+                bubbles: true,
+            })
         );
 
         /*
-         * Envoie le message.
+         * Laisser SillyTavern appliquer le changement
+         * de Persona avant l'envoi.
          */
-
-        await sendTextareaMessage();
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         console.log(
-            `[SillyTupper] Message envoyé avec "${persona.fullName}".`
+            `[SillyTupper] Envoi avec "${persona.fullName}" :`,
+            parsed.message
         );
 
-        return true;
+        /* Envoi natif SillyTavern */
+        await sendTextareaMessage();
 
     } catch (error) {
-
         console.error(
-            '[SillyTupper] Erreur :',
+            '[SillyTupper] Erreur pendant l’envoi :',
             error
         );
 
         /*
-         * Restaure le message original
-         * si une erreur survient.
+         * Restaurer le texte original
+         * en cas d'erreur.
          */
-
         textarea.value = originalText;
 
         textarea.dispatchEvent(
@@ -268,12 +187,8 @@ async function processTupperMessage() {
             })
         );
 
-        return false;
-
     } finally {
-
         isProcessing = false;
-
     }
 }
 
@@ -282,95 +197,54 @@ async function processTupperMessage() {
    KEYBOARD — ENTER
    ========================================================= */
 
-function setupKeyboardListener() {
+function handleKeyDown(event) {
+    if (event.key !== 'Enter') {
+        return;
+    }
 
-    document.addEventListener(
-        'keydown',
-        async (event) => {
+    if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+    }
 
-            if (event.key !== 'Enter') {
-                return;
-            }
+    const textarea = getTextarea();
 
-            /*
-             * Shift + Enter = nouvelle ligne.
-             */
+    if (!textarea) {
+        return;
+    }
 
-            if (event.shiftKey) {
-                return;
-            }
+    /*
+     * Ne rien faire si l'utilisateur n'est pas
+     * dans la zone de saisie.
+     */
+    if (event.target !== textarea) {
+        return;
+    }
 
-            /*
-             * Ignore les raccourcis.
-             */
+    const parsed = parseTupperMessage(textarea.value);
 
-            if (
-                event.ctrlKey ||
-                event.altKey ||
-                event.metaKey
-            ) {
-                return;
-            }
+    if (!parsed) {
+        return;
+    }
 
-            const textarea = document.getElementById(
-                'send_textarea'
-            );
+    const persona = findPersonaByFirstName(parsed.personaName);
 
-            if (!textarea) {
-                return;
-            }
+    /*
+     * Si ce n'est pas une Persona valide,
+     * SillyTavern garde son comportement normal.
+     */
+    if (!persona) {
+        return;
+    }
 
-            if (event.target !== textarea) {
-                return;
-            }
-
-            const text = textarea.value.trim();
-
-            if (!text) {
-                return;
-            }
-
-            const parsed = parseTupperMessage(text);
-
-            /*
-             * Message normal :
-             * SillyTavern fonctionne normalement.
-             */
-
-            if (!parsed) {
-                return;
-            }
-
-            /*
-             * Vérifie que la Persona existe
-             * AVANT de bloquer l'envoi natif.
-             */
-
-            const persona = findPersonaByFirstName(
-                parsed.personaName
-            );
-
-            if (!persona) {
-                return;
-            }
-
-            /*
-             * Bloque l'envoi natif.
-             */
-
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-
-            /*
-             * Lance SillyTupper.
-             */
-
-            await processTupperMessage();
-
-        },
-        true
+    console.log(
+        '[SillyTupper] ENTER intercepté.'
     );
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    processTupperMessage();
 }
 
 
@@ -378,74 +252,40 @@ function setupKeyboardListener() {
    SEND BUTTON
    ========================================================= */
 
-function setupSendButtonListener() {
+function handleSendClick(event) {
+    const button = event.target.closest('#send_but');
 
-    document.addEventListener(
-        'click',
-        async (event) => {
+    if (!button) {
+        return;
+    }
 
-            const button = event.target.closest(
-                '#send_but'
-            );
+    const textarea = getTextarea();
 
-            if (!button) {
-                return;
-            }
+    if (!textarea) {
+        return;
+    }
 
-            const textarea = document.getElementById(
-                'send_textarea'
-            );
+    const parsed = parseTupperMessage(textarea.value);
 
-            if (!textarea) {
-                return;
-            }
+    if (!parsed) {
+        return;
+    }
 
-            const text = textarea.value.trim();
+    const persona = findPersonaByFirstName(parsed.personaName);
 
-            if (!text) {
-                return;
-            }
+    if (!persona) {
+        return;
+    }
 
-            const parsed = parseTupperMessage(text);
-
-            /*
-             * Message normal :
-             * comportement normal de SillyTavern.
-             */
-
-            if (!parsed) {
-                return;
-            }
-
-            /*
-             * Vérifie que la Persona existe.
-             */
-
-            const persona = findPersonaByFirstName(
-                parsed.personaName
-            );
-
-            if (!persona) {
-                return;
-            }
-
-            /*
-             * Bloque le bouton natif.
-             */
-
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-
-            /*
-             * Lance SillyTupper.
-             */
-
-            await processTupperMessage();
-
-        },
-        true
+    console.log(
+        '[SillyTupper] Bouton envoyer intercepté.'
     );
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    processTupperMessage();
 }
 
 
@@ -454,27 +294,35 @@ function setupSendButtonListener() {
    ========================================================= */
 
 function initialize() {
+    loadSettings();
 
-    try {
+    /*
+     * Capture = true
+     *
+     * Permet à SillyTupper d'intercepter l'action
+     * avant les autres extensions comme FastSend.
+     */
+    document.addEventListener(
+        'keydown',
+        handleKeyDown,
+        true
+    );
 
-        loadSettings();
+    document.addEventListener(
+        'click',
+        handleSendClick,
+        true
+    );
 
-        setupKeyboardListener();
+    console.log(
+        '%c[SillyTupper] Extension chargée.',
+        'color:#7c5cff;font-weight:bold;'
+    );
 
-        setupSendButtonListener();
-
-        console.log(
-            '[SillyTupper] Extension chargée avec succès.'
-        );
-
-    } catch (error) {
-
-        console.error(
-            '[SillyTupper] Erreur d\'initialisation :',
-            error
-        );
-
-    }
+    console.log(
+        '[SillyTupper] Personas disponibles :',
+        power_user?.personas
+    );
 }
 
 
@@ -482,18 +330,4 @@ function initialize() {
    START
    ========================================================= */
 
-if (document.readyState === 'loading') {
-
-    document.addEventListener(
-        'DOMContentLoaded',
-        initialize,
-        {
-            once: true,
-        }
-    );
-
-} else {
-
-    initialize();
-
-}
+initialize();
