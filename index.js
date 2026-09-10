@@ -10,49 +10,36 @@ let isProcessing = false;
 
 
 /* =========================================================
-   DEFAULT SETTINGS
-   ========================================================= */
-
-function getDefaultSettings() {
-    return {
-        enabled: true,
-        tuppers: []
-    };
-}
-
-
-/* =========================================================
-   LOAD SETTINGS
+   SETTINGS
    ========================================================= */
 
 function loadSettings() {
 
     if (!extension_settings[extensionName]) {
-        extension_settings[extensionName] = getDefaultSettings();
+        extension_settings[extensionName] = {
+            enabled: true,
+            tuppers: []
+        };
     }
 
-    const settings = extension_settings[extensionName];
-
-    if (typeof settings.enabled !== 'boolean') {
-        settings.enabled = true;
+    if (
+        typeof extension_settings[extensionName].enabled
+        !== 'boolean'
+    ) {
+        extension_settings[extensionName].enabled = true;
     }
 
-    if (!Array.isArray(settings.tuppers)) {
-        settings.tuppers = [];
+    if (
+        !Array.isArray(
+            extension_settings[extensionName].tuppers
+        )
+    ) {
+        extension_settings[extensionName].tuppers = [];
     }
 }
 
 
-/* =========================================================
-   SAVE SETTINGS
-   ========================================================= */
-
 function saveSettings() {
-
-    extension_settings[extensionName] = {
-        enabled: extension_settings[extensionName].enabled,
-        tuppers: extension_settings[extensionName].tuppers
-    };
 
     if (typeof saveSettingsDebounced === 'function') {
         saveSettingsDebounced();
@@ -61,7 +48,7 @@ function saveSettings() {
 
 
 /* =========================================================
-   GET PERSONAS
+   PERSONAS
    ========================================================= */
 
 function getPersonas() {
@@ -82,7 +69,7 @@ function getPersonas() {
 
 
 /* =========================================================
-   FIND TUPPER BY TRIGGER
+   TUPPER SEARCH
    ========================================================= */
 
 function findTupperByTrigger(trigger) {
@@ -95,26 +82,25 @@ function findTupperByTrigger(trigger) {
         return null;
     }
 
-    const tuppers =
-        extension_settings[extensionName].tuppers;
-
-    return tuppers.find(
+    return extension_settings[
+        extensionName
+    ].tuppers.find(
         tupper =>
             tupper.enabled !== false &&
-            String(tupper.trigger).trim().toLowerCase() === search
+            String(tupper.trigger)
+                .trim()
+                .toLowerCase() === search
     ) || null;
 }
 
 
-/* =========================================================
-   FIND TUPPER BY ID
-   ========================================================= */
-
 function findTupperById(id) {
 
-    return extension_settings[extensionName]
-        .tuppers
-        .find(tupper => tupper.id === id);
+    return extension_settings[
+        extensionName
+    ].tuppers.find(
+        tupper => tupper.id === id
+    );
 }
 
 
@@ -151,7 +137,7 @@ function parseTupperMessage(text) {
 
 
 /* =========================================================
-   PROCESS MESSAGE
+   PROCESS TUPPER
    ========================================================= */
 
 async function processTupperMessage() {
@@ -160,12 +146,18 @@ async function processTupperMessage() {
         return false;
     }
 
-    if (!extension_settings[extensionName]?.enabled) {
+    if (
+        !extension_settings[
+            extensionName
+        ]?.enabled
+    ) {
         return false;
     }
 
     const textarea =
-        document.getElementById('send_textarea');
+        document.getElementById(
+            'send_textarea'
+        );
 
     if (!textarea) {
         return false;
@@ -174,22 +166,22 @@ async function processTupperMessage() {
     const originalText = textarea.value;
 
     const parsed =
-        parseTupperMessage(originalText);
+        parseTupperMessage(
+            originalText
+        );
 
     if (!parsed) {
         return false;
     }
 
-    /*
-     * Cherche le trigger dans le panneau.
-     */
-
     const tupper =
-        findTupperByTrigger(parsed.trigger);
+        findTupperByTrigger(
+            parsed.trigger
+        );
 
     /*
      * Aucun Tupper correspondant :
-     * SillyTavern garde son fonctionnement normal.
+     * comportement normal de SillyTavern.
      */
 
     if (!tupper) {
@@ -201,13 +193,12 @@ async function processTupperMessage() {
     try {
 
         console.log(
-            `[SillyTupper] Trigger "${parsed.trigger}" → ${tupper.personaName}`
+            `[SillyTupper] ${parsed.trigger} → ${tupper.personaName}`
         );
 
         /*
-         * Sélection directe de la Persona
-         * grâce à son avatarId enregistré
-         * dans le panneau.
+         * Sélectionne directement la Persona
+         * enregistrée dans le panneau.
          */
 
         await setUserAvatar(
@@ -218,21 +209,25 @@ async function processTupperMessage() {
         );
 
         /*
-         * Remplace :
+         * Retire le trigger.
          *
-         * Heinrich: Bonjour
+         * Wilhelm: Bonjour
          *
-         * par :
+         * devient :
          *
          * Bonjour
          */
 
-        textarea.value = parsed.message;
+        textarea.value =
+            parsed.message;
 
         textarea.dispatchEvent(
-            new Event('input', {
-                bubbles: true
-            })
+            new Event(
+                'input',
+                {
+                    bubbles: true
+                }
+            )
         );
 
         /*
@@ -241,17 +236,18 @@ async function processTupperMessage() {
          */
 
         await new Promise(
-            resolve => setTimeout(resolve, 0)
+            resolve =>
+                setTimeout(resolve, 0)
         );
 
         /*
-         * Envoi natif.
+         * Envoi normal.
          */
 
         await sendTextareaMessage();
 
         console.log(
-            `[SillyTupper] Message envoyé sous "${tupper.personaName}".`
+            `[SillyTupper] Envoyé sous ${tupper.personaName}`
         );
 
         return true;
@@ -263,12 +259,16 @@ async function processTupperMessage() {
             error
         );
 
-        textarea.value = originalText;
+        textarea.value =
+            originalText;
 
         textarea.dispatchEvent(
-            new Event('input', {
-                bubbles: true
-            })
+            new Event(
+                'input',
+                {
+                    bubbles: true
+                }
+            )
         );
 
         return false;
@@ -304,13 +304,17 @@ function setupKeyboardListener() {
             }
 
             const textarea =
-                document.getElementById('send_textarea');
+                document.getElementById(
+                    'send_textarea'
+                );
 
             if (!textarea) {
                 return;
             }
 
-            if (event.target !== textarea) {
+            if (
+                event.target !== textarea
+            ) {
                 return;
             }
 
@@ -323,20 +327,14 @@ function setupKeyboardListener() {
                 return;
             }
 
-            /*
-             * Vérifie qu'un Tupper existe.
-             */
-
             const tupper =
-                findTupperByTrigger(parsed.trigger);
+                findTupperByTrigger(
+                    parsed.trigger
+                );
 
             if (!tupper) {
                 return;
             }
-
-            /*
-             * Bloque l'envoi natif.
-             */
 
             event.preventDefault();
             event.stopPropagation();
@@ -361,14 +359,18 @@ function setupSendButtonListener() {
         async event => {
 
             const button =
-                event.target.closest('#send_but');
+                event.target.closest(
+                    '#send_but'
+                );
 
             if (!button) {
                 return;
             }
 
             const textarea =
-                document.getElementById('send_textarea');
+                document.getElementById(
+                    'send_textarea'
+                );
 
             if (!textarea) {
                 return;
@@ -384,15 +386,13 @@ function setupSendButtonListener() {
             }
 
             const tupper =
-                findTupperByTrigger(parsed.trigger);
+                findTupperByTrigger(
+                    parsed.trigger
+                );
 
             if (!tupper) {
                 return;
             }
-
-            /*
-             * Bloque l'envoi natif.
-             */
 
             event.preventDefault();
             event.stopPropagation();
@@ -407,144 +407,25 @@ function setupSendButtonListener() {
 
 
 /* =========================================================
-   PANEL HTML
+   ESCAPE HTML
    ========================================================= */
 
-function createPanel() {
+function escapeHtml(value) {
 
-    if (document.getElementById(
-        'sillytupper-panel'
-    )) {
-        return;
-    }
-
-    const container =
-        document.createElement('div');
-
-    container.id = 'sillytupper-panel';
-    container.className =
-        'sillytupper-panel';
-
-    container.innerHTML = `
-        <div class="sillytupper-header">
-            <div>
-                <div class="sillytupper-title">
-                    SillyTupper
-                </div>
-
-                <div class="sillytupper-subtitle">
-                    Gestion de tes Tuppers
-                </div>
-            </div>
-
-            <label class="sillytupper-switch">
-                <input
-                    type="checkbox"
-                    id="sillytupper-enabled"
-                >
-
-                <span></span>
-            </label>
-        </div>
-
-        <div class="sillytupper-divider"></div>
-
-        <div
-            id="sillytupper-list"
-            class="sillytupper-list"
-        ></div>
-
-        <button
-            id="sillytupper-add"
-            class="sillytupper-add"
-            type="button"
-        >
-            <span>＋</span>
-            Ajouter un Tupper
-        </button>
-    `;
-
-    /*
-     * On ajoute le panneau aux paramètres
-     * des extensions SillyTavern.
-     */
-
-    const settingsContainer =
-        document.getElementById(
-            'extensions_settings'
-        );
-
-    if (settingsContainer) {
-
-        settingsContainer.prepend(
-            container
-        );
-
-    } else {
-
-        document.body.prepend(
-            container
-        );
-    }
-
-    setupPanelEvents();
-
-    renderPanel();
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 
 /* =========================================================
-   PANEL EVENTS
+   RENDER TUPPER LIST
    ========================================================= */
 
-function setupPanelEvents() {
-
-    const enabled =
-        document.getElementById(
-            'sillytupper-enabled'
-        );
-
-    if (enabled) {
-
-        enabled.checked =
-            extension_settings[
-                extensionName
-            ].enabled;
-
-        enabled.addEventListener(
-            'change',
-            () => {
-
-                extension_settings[
-                    extensionName
-                ].enabled = enabled.checked;
-
-                saveSettings();
-            }
-        );
-    }
-
-
-    const addButton =
-        document.getElementById(
-            'sillytupper-add'
-        );
-
-    if (addButton) {
-
-        addButton.addEventListener(
-            'click',
-            showAddTupper
-        );
-    }
-}
-
-
-/* =========================================================
-   RENDER PANEL
-   ========================================================= */
-
-function renderPanel() {
+function renderTupperList() {
 
     const list =
         document.getElementById(
@@ -562,13 +443,13 @@ function renderPanel() {
             extensionName
         ].tuppers;
 
-    if (tuppers.length === 0) {
+    if (!tuppers.length) {
 
         list.innerHTML = `
             <div class="sillytupper-empty">
                 Aucun Tupper configuré.
                 <br>
-                Ajoute une Persona pour commencer.
+                Clique sur « Ajouter un Tupper ».
             </div>
         `;
 
@@ -578,12 +459,16 @@ function renderPanel() {
     for (const tupper of tuppers) {
 
         const item =
-            document.createElement('div');
+            document.createElement(
+                'div'
+            );
 
         item.className =
             'sillytupper-item';
 
-        if (tupper.enabled === false) {
+        if (
+            tupper.enabled === false
+        ) {
             item.classList.add(
                 'sillytupper-disabled'
             );
@@ -593,13 +478,17 @@ function renderPanel() {
             <div class="sillytupper-item-info">
 
                 <div class="sillytupper-persona">
-                    ${escapeHtml(tupper.personaName)}
+                    ${escapeHtml(
+                        tupper.personaName
+                    )}
                 </div>
 
                 <div class="sillytupper-trigger">
                     Trigger :
                     <strong>
-                        ${escapeHtml(tupper.trigger)}
+                        ${escapeHtml(
+                            tupper.trigger
+                        )}
                     </strong>
                 </div>
 
@@ -610,15 +499,15 @@ function renderPanel() {
                 <button
                     class="sillytupper-toggle"
                     type="button"
-                    title="Activer / désactiver"
                 >
-                    ${tupper.enabled === false ? '○' : '●'}
+                    ${tupper.enabled === false
+                        ? '○'
+                        : '●'}
                 </button>
 
                 <button
                     class="sillytupper-edit"
                     type="button"
-                    title="Modifier"
                 >
                     ✎
                 </button>
@@ -626,13 +515,15 @@ function renderPanel() {
                 <button
                     class="sillytupper-delete"
                     type="button"
-                    title="Supprimer"
                 >
                     ×
                 </button>
 
             </div>
         `;
+
+
+        /* Toggle */
 
         item.querySelector(
             '.sillytupper-toggle'
@@ -644,9 +535,12 @@ function renderPanel() {
                     tupper.enabled === false;
 
                 saveSettings();
-                renderPanel();
+                renderTupperList();
             }
         );
+
+
+        /* Edit */
 
         item.querySelector(
             '.sillytupper-edit'
@@ -654,11 +548,14 @@ function renderPanel() {
             'click',
             () => {
 
-                showEditTupper(
-                    tupper.id
+                showTupperDialog(
+                    tupper
                 );
             }
         );
+
+
+        /* Delete */
 
         item.querySelector(
             '.sillytupper-delete'
@@ -667,26 +564,29 @@ function renderPanel() {
             () => {
 
                 if (
-                    confirm(
+                    !confirm(
                         `Supprimer le Tupper "${tupper.trigger}" ?`
                     )
                 ) {
+                    return;
+                }
 
+                extension_settings[
+                    extensionName
+                ].tuppers =
                     extension_settings[
                         extensionName
-                    ].tuppers =
-                        extension_settings[
-                            extensionName
-                        ].tuppers.filter(
-                            item =>
-                                item.id !== tupper.id
-                        );
+                    ].tuppers.filter(
+                        item =>
+                            item.id !==
+                            tupper.id
+                    );
 
-                    saveSettings();
-                    renderPanel();
-                }
+                saveSettings();
+                renderTupperList();
             }
         );
+
 
         list.appendChild(item);
     }
@@ -694,29 +594,197 @@ function renderPanel() {
 
 
 /* =========================================================
-   ADD TUPPER
+   PANEL
    ========================================================= */
 
-function showAddTupper() {
+function createPanel() {
 
-    showTupperDialog(null);
-}
+    /*
+     * Empêche les doublons.
+     */
 
-
-/* =========================================================
-   EDIT TUPPER
-   ========================================================= */
-
-function showEditTupper(id) {
-
-    const tupper =
-        findTupperById(id);
-
-    if (!tupper) {
+    if (
+        document.getElementById(
+            'sillytupper-settings'
+        )
+    ) {
         return;
     }
 
-    showTupperDialog(tupper);
+    /*
+     * Conteneur SillyTavern.
+     */
+
+    const settingsContainer =
+        document.getElementById(
+            'extensions_settings2'
+        );
+
+    if (!settingsContainer) {
+
+        console.error(
+            '[SillyTupper] #extensions_settings2 introuvable.'
+        );
+
+        return;
+    }
+
+    /*
+     * Structure standard
+     * des extensions SillyTavern.
+     */
+
+    const wrapper =
+        document.createElement(
+            'div'
+        );
+
+    wrapper.id =
+        'sillytupper-settings';
+
+    wrapper.innerHTML = `
+        <div class="inline-drawer">
+
+            <div
+                class="inline-drawer-toggle
+                       inline-drawer-header"
+            >
+
+                <b>
+                    SillyTupper
+                </b>
+
+                <div
+                    class="inline-drawer-icon
+                           fa-solid
+                           fa-circle-chevron-down
+                           down"
+                ></div>
+
+            </div>
+
+            <div
+                class="inline-drawer-content"
+            >
+
+                <div
+                    class="sillytupper-panel"
+                >
+
+                    <div
+                        class="sillytupper-header"
+                    >
+
+                        <div>
+
+                            <div
+                                class="sillytupper-title"
+                            >
+                                Gestion des Tuppers
+                            </div>
+
+                            <div
+                                class="sillytupper-subtitle"
+                            >
+                                Configure tes Personas
+                                et leurs triggers.
+                            </div>
+
+                        </div>
+
+                        <label
+                            class="sillytupper-switch"
+                        >
+
+                            <input
+                                type="checkbox"
+                                id="sillytupper-enabled"
+                            >
+
+                            <span></span>
+
+                        </label>
+
+                    </div>
+
+                    <div
+                        class="sillytupper-divider"
+                    ></div>
+
+                    <div
+                        id="sillytupper-list"
+                        class="sillytupper-list"
+                    ></div>
+
+                    <button
+                        id="sillytupper-add"
+                        class="sillytupper-add"
+                        type="button"
+                    >
+                        ＋ Ajouter un Tupper
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    `;
+
+    /*
+     * Ajoute SillyTupper au vrai panneau
+     * des extensions.
+     */
+
+    settingsContainer.appendChild(
+        wrapper
+    );
+
+
+    /*
+     * Active le bouton général.
+     */
+
+    const enabled =
+        document.getElementById(
+            'sillytupper-enabled'
+        );
+
+    enabled.checked =
+        extension_settings[
+            extensionName
+        ].enabled;
+
+    enabled.addEventListener(
+        'change',
+        () => {
+
+            extension_settings[
+                extensionName
+            ].enabled =
+                enabled.checked;
+
+            saveSettings();
+        }
+    );
+
+
+    /*
+     * Bouton Ajouter.
+     */
+
+    document.getElementById(
+        'sillytupper-add'
+    ).addEventListener(
+        'click',
+        () => {
+
+            showTupperDialog();
+        }
+    );
+
+
+    renderTupperList();
 }
 
 
@@ -724,11 +792,14 @@ function showEditTupper(id) {
    TUPPER DIALOG
    ========================================================= */
 
-function showTupperDialog(existingTupper) {
+function showTupperDialog(
+    existingTupper = null
+) {
 
-    const personas = getPersonas();
+    const personas =
+        getPersonas();
 
-    if (personas.length === 0) {
+    if (!personas.length) {
 
         alert(
             'Aucune Persona disponible.'
@@ -738,16 +809,22 @@ function showTupperDialog(existingTupper) {
     }
 
     const overlay =
-        document.createElement('div');
+        document.createElement(
+            'div'
+        );
 
     overlay.className =
         'sillytupper-overlay';
 
+
     const dialog =
-        document.createElement('div');
+        document.createElement(
+            'div'
+        );
 
     dialog.className =
         'sillytupper-dialog';
+
 
     const selectedAvatar =
         existingTupper?.avatarId || '';
@@ -755,36 +832,63 @@ function showTupperDialog(existingTupper) {
     const selectedTrigger =
         existingTupper?.trigger || '';
 
+
     dialog.innerHTML = `
-        <div class="sillytupper-dialog-title">
-            ${existingTupper
-                ? 'Modifier le Tupper'
-                : 'Ajouter un Tupper'}
+
+        <div
+            class="sillytupper-dialog-title"
+        >
+            ${
+                existingTupper
+                    ? 'Modifier le Tupper'
+                    : 'Ajouter un Tupper'
+            }
         </div>
 
-        <label class="sillytupper-label">
+
+        <label
+            class="sillytupper-label"
+        >
             Persona
         </label>
+
 
         <select
             id="sillytupper-persona-select"
             class="sillytupper-select"
         >
-            ${personas.map(persona => `
-                <option
-                    value="${escapeHtml(persona.avatarId)}"
-                    ${persona.avatarId === selectedAvatar
-                        ? 'selected'
-                        : ''}
-                >
-                    ${escapeHtml(persona.name)}
-                </option>
-            `).join('')}
+
+            ${personas.map(
+                persona => `
+
+                    <option
+                        value="${escapeHtml(
+                            persona.avatarId
+                        )}"
+                        ${
+                            persona.avatarId ===
+                            selectedAvatar
+                                ? 'selected'
+                                : ''
+                        }
+                    >
+                        ${escapeHtml(
+                            persona.name
+                        )}
+                    </option>
+
+                `
+            ).join('')}
+
         </select>
 
-        <label class="sillytupper-label">
+
+        <label
+            class="sillytupper-label"
+        >
             Trigger
         </label>
+
 
         <input
             id="sillytupper-trigger-input"
@@ -792,17 +896,30 @@ function showTupperDialog(existingTupper) {
             type="text"
             maxlength="50"
             placeholder="Exemple : Heinrich"
-            value="${escapeHtml(selectedTrigger)}"
+            value="${escapeHtml(
+                selectedTrigger
+            )}"
         >
 
-        <div class="sillytupper-preview">
-            <span>Exemple :</span>
+
+        <div
+            class="sillytupper-preview"
+        >
+
+            <span>
+                Utilisation :
+            </span>
+
             <code>
                 Heinrich: Bonjour
             </code>
+
         </div>
 
-        <div class="sillytupper-dialog-buttons">
+
+        <div
+            class="sillytupper-dialog-buttons"
+        >
 
             <button
                 id="sillytupper-cancel"
@@ -811,6 +928,7 @@ function showTupperDialog(existingTupper) {
             >
                 Annuler
             </button>
+
 
             <button
                 id="sillytupper-save"
@@ -823,29 +941,30 @@ function showTupperDialog(existingTupper) {
         </div>
     `;
 
-    overlay.appendChild(dialog);
 
-    document.body.appendChild(overlay);
+    overlay.appendChild(
+        dialog
+    );
+
+    document.body.appendChild(
+        overlay
+    );
 
 
-    const select =
-        dialog.querySelector(
-            '#sillytupper-persona-select'
-        );
-
-    const triggerInput =
-        dialog.querySelector(
-            '#sillytupper-trigger-input'
-        );
-
+    /* Cancel */
 
     dialog.querySelector(
         '#sillytupper-cancel'
     ).addEventListener(
         'click',
-        () => overlay.remove()
+        () => {
+
+            overlay.remove();
+        }
     );
 
+
+    /* Save */
 
     dialog.querySelector(
         '#sillytupper-save'
@@ -853,11 +972,22 @@ function showTupperDialog(existingTupper) {
         'click',
         () => {
 
+            const select =
+                dialog.querySelector(
+                    '#sillytupper-persona-select'
+                );
+
+            const triggerInput =
+                dialog.querySelector(
+                    '#sillytupper-trigger-input'
+                );
+
             const avatarId =
                 select.value;
 
             const trigger =
                 triggerInput.value.trim();
+
 
             if (!trigger) {
 
@@ -868,8 +998,10 @@ function showTupperDialog(existingTupper) {
                 return;
             }
 
+
             /*
-             * Vérifie les doublons.
+             * Empêche deux Tuppers
+             * d'avoir le même trigger.
              */
 
             const duplicate =
@@ -877,13 +1009,20 @@ function showTupperDialog(existingTupper) {
                     extensionName
                 ].tuppers.find(
                     tupper =>
+
                         tupper.id !==
-                        existingTupper?.id &&
+                        existingTupper?.id
+
+                        &&
+
                         tupper.trigger
                             .trim()
-                            .toLowerCase() ===
-                        trigger.toLowerCase()
+                            .toLowerCase()
+                        ===
+                        trigger
+                            .toLowerCase()
                 );
+
 
             if (duplicate) {
 
@@ -894,15 +1033,19 @@ function showTupperDialog(existingTupper) {
                 return;
             }
 
+
             const persona =
                 personas.find(
                     item =>
-                        item.avatarId === avatarId
+                        item.avatarId ===
+                        avatarId
                 );
+
 
             if (!persona) {
                 return;
             }
+
 
             if (existingTupper) {
 
@@ -940,36 +1083,28 @@ function showTupperDialog(existingTupper) {
                 });
             }
 
+
             saveSettings();
 
-            renderPanel();
+            renderTupperList();
 
             overlay.remove();
         }
     );
 
 
-    triggerInput.focus();
+    /*
+     * Focus sur le trigger.
+     */
+
+    dialog.querySelector(
+        '#sillytupper-trigger-input'
+    ).focus();
 }
 
 
 /* =========================================================
-   ESCAPE HTML
-   ========================================================= */
-
-function escapeHtml(value) {
-
-    return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-
-/* =========================================================
-   INITIALIZE
+   INITIALIZATION
    ========================================================= */
 
 function initialize() {
@@ -978,7 +1113,16 @@ function initialize() {
 
         loadSettings();
 
+        /*
+         * Le panneau est créé dans
+         * #extensions_settings2.
+         */
+
         createPanel();
+
+        /*
+         * Fonctionnement des Tuppers.
+         */
 
         setupKeyboardListener();
 
@@ -1002,7 +1146,10 @@ function initialize() {
    START
    ========================================================= */
 
-if (document.readyState === 'loading') {
+if (
+    document.readyState ===
+    'loading'
+) {
 
     document.addEventListener(
         'DOMContentLoaded',
