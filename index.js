@@ -1,6 +1,6 @@
 import { extension_settings } from '../../../extensions.js';
 import { autoSelectPersona } from '../../../personas.js';
-import { sendTextareaMessage } from '../../../script.js';
+import { sendTextareaMessage } from '../../../../script.js';
 
 
 const extensionName = 'SillyTupper';
@@ -33,11 +33,11 @@ function parseTupperMessage(text) {
     }
 
     /*
-     * Format :
+     * Formats :
      *
      * Hagen: Bonjour
-     *
      * Remus Lupin: Bonjour
+     * Albert Speer: Bonjour
      */
 
     const match = text.match(/^([^:\n]{1,60}):\s*([\s\S]*)$/);
@@ -66,25 +66,13 @@ function parseTupperMessage(text) {
 
 async function processTupperMessage() {
 
-    /*
-     * Empêche plusieurs traitements simultanés.
-     */
-
     if (isProcessing) {
         return false;
     }
 
-    /*
-     * Vérifie que l'extension est activée.
-     */
-
     if (!extension_settings[extensionName]?.enabled) {
         return false;
     }
-
-    /*
-     * Récupère le champ de saisie.
-     */
 
     const textarea = document.getElementById('send_textarea');
 
@@ -96,19 +84,11 @@ async function processTupperMessage() {
         return false;
     }
 
-    /*
-     * Sauvegarde le message original.
-     */
-
     const originalText = textarea.value;
 
     if (!originalText.trim()) {
         return false;
     }
-
-    /*
-     * Analyse le message.
-     */
 
     const parsed = parseTupperMessage(originalText);
 
@@ -125,8 +105,7 @@ async function processTupperMessage() {
         );
 
         /*
-         * Recherche et sélectionne automatiquement
-         * la Persona correspondante.
+         * Sélection automatique de la Persona.
          */
 
         const personaFound = await autoSelectPersona(
@@ -134,7 +113,7 @@ async function processTupperMessage() {
         );
 
         /*
-         * Persona introuvable.
+         * Persona inexistante.
          */
 
         if (!personaFound) {
@@ -142,10 +121,6 @@ async function processTupperMessage() {
             console.log(
                 `[SillyTupper] Persona introuvable : "${parsed.personaName}"`
             );
-
-            /*
-             * On ne modifie pas le message.
-             */
 
             return false;
         }
@@ -167,8 +142,7 @@ async function processTupperMessage() {
         textarea.value = parsed.message;
 
         /*
-         * Informe SillyTavern du changement
-         * du contenu du textarea.
+         * Informe SillyTavern du changement.
          */
 
         textarea.dispatchEvent(
@@ -178,21 +152,20 @@ async function processTupperMessage() {
         );
 
         /*
-         * Laisse le navigateur et SillyTavern
-         * traiter le changement.
+         * Laisse SillyTavern traiter le changement
+         * avant l'envoi.
          */
 
         await new Promise(resolve => setTimeout(resolve, 0));
 
         /*
-         * Envoie le message via l'API native
-         * de SillyTavern.
+         * Envoie le message avec la Persona.
          */
 
         await sendTextareaMessage();
 
         console.log(
-            `[SillyTupper] Message envoyé avec la Persona "${parsed.personaName}".`
+            `[SillyTupper] Message envoyé avec "${parsed.personaName}".`
         );
 
         return true;
@@ -206,7 +179,7 @@ async function processTupperMessage() {
 
         /*
          * Restaure le message original
-         * si quelque chose échoue.
+         * en cas d'erreur.
          */
 
         textarea.value = originalText;
@@ -237,17 +210,12 @@ function setupKeyboardListener() {
         'keydown',
         async (event) => {
 
-            /*
-             * Seulement la touche Enter.
-             */
-
             if (event.key !== 'Enter') {
                 return;
             }
 
             /*
-             * Shift + Enter :
-             * retour à la ligne normal.
+             * Shift + Enter = retour à la ligne.
              */
 
             if (event.shiftKey) {
@@ -255,7 +223,7 @@ function setupKeyboardListener() {
             }
 
             /*
-             * Ignore les raccourcis clavier.
+             * Ignore les raccourcis.
              */
 
             if (
@@ -266,10 +234,6 @@ function setupKeyboardListener() {
                 return;
             }
 
-            /*
-             * Récupère le textarea.
-             */
-
             const textarea = document.getElementById(
                 'send_textarea'
             );
@@ -279,17 +243,13 @@ function setupKeyboardListener() {
             }
 
             /*
-             * Vérifie que Enter vient bien
-             * du textarea.
+             * Vérifie que l'événement vient
+             * bien du textarea.
              */
 
             if (event.target !== textarea) {
                 return;
             }
-
-            /*
-             * Vérifie le contenu.
-             */
 
             const text = textarea.value.trim();
 
@@ -298,15 +258,16 @@ function setupKeyboardListener() {
             }
 
             /*
-             * Vérifie si le message possède
-             * un préfixe Tupper.
+             * Vérifie le format :
+             *
+             * Nom: message
              */
 
             const parsed = parseTupperMessage(text);
 
             /*
              * Message normal :
-             * SillyTavern le traite normalement.
+             * SillyTavern fonctionne normalement.
              */
 
             if (!parsed) {
@@ -314,18 +275,7 @@ function setupKeyboardListener() {
             }
 
             /*
-             * Si un traitement est déjà en cours,
-             * ne rien faire.
-             */
-
-            if (isProcessing) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                return;
-            }
-
-            /*
-             * On bloque l'envoi natif.
+             * Bloque l'envoi natif.
              */
 
             event.preventDefault();
@@ -354,10 +304,6 @@ function setupSendButtonListener() {
         'click',
         async (event) => {
 
-            /*
-             * Recherche le bouton d'envoi.
-             */
-
             const button = event.target.closest(
                 '#send_but'
             );
@@ -366,10 +312,6 @@ function setupSendButtonListener() {
                 return;
             }
 
-            /*
-             * Récupère le textarea.
-             */
-
             const textarea = document.getElementById(
                 'send_textarea'
             );
@@ -377,10 +319,6 @@ function setupSendButtonListener() {
             if (!textarea) {
                 return;
             }
-
-            /*
-             * Récupère le texte.
-             */
 
             const text = textarea.value.trim();
 
@@ -396,7 +334,7 @@ function setupSendButtonListener() {
 
             /*
              * Message normal :
-             * comportement natif de SillyTavern.
+             * SillyTavern fonctionne normalement.
              */
 
             if (!parsed) {
@@ -404,18 +342,7 @@ function setupSendButtonListener() {
             }
 
             /*
-             * Évite les doubles envois.
-             */
-
-            if (isProcessing) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                return;
-            }
-
-            /*
-             * Empêche le bouton natif
-             * d'envoyer le message original.
+             * Bloque l'envoi natif.
              */
 
             event.preventDefault();
@@ -423,7 +350,7 @@ function setupSendButtonListener() {
             event.stopImmediatePropagation();
 
             /*
-             * Traite le message Tupper.
+             * Traite le message.
              */
 
             await processTupperMessage();
@@ -442,21 +369,9 @@ function initialize() {
 
     try {
 
-        /*
-         * Charge les paramètres.
-         */
-
         loadSettings();
 
-        /*
-         * Active la détection de Enter.
-         */
-
         setupKeyboardListener();
-
-        /*
-         * Active la détection du bouton Envoyer.
-         */
 
         setupSendButtonListener();
 
