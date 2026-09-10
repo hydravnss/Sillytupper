@@ -1,5 +1,6 @@
 import { extension_settings } from '../../../extensions.js';
-import { autoSelectPersona, power_user } from '../../../personas.js';
+import { autoSelectPersona } from '../../../personas.js';
+import { power_user } from '../../../power-user.js';
 import { sendTextareaMessage } from '../../../../script.js';
 
 
@@ -38,23 +39,39 @@ function resolvePersonaName(inputName) {
     const personas = power_user?.personas;
 
     if (!personas || typeof personas !== 'object') {
+        console.warn('[SillyTupper] Liste des Personas introuvable.');
         return null;
     }
 
     /*
+     * Cherche d'abord une correspondance exacte.
+     *
      * Exemple :
+     * "Narrator" → "Narrator"
+     * "Wilhelm Burgdorf" → "Wilhelm Burgdorf"
+     */
+
+    for (const personaName of Object.values(personas)) {
+
+        if (!personaName) {
+            continue;
+        }
+
+        const fullName = String(personaName).trim();
+
+        if (
+            fullName.toLowerCase() === wantedName
+        ) {
+            return fullName;
+        }
+    }
+
+    /*
+     * Si aucun nom complet ne correspond,
+     * cherche uniquement le prénom.
      *
-     * Wilhelm
-     *    ↓
-     * Wilhelm Burgdorf
-     *
-     * Narrator
-     *    ↓
-     * Narrator
-     *
-     * Heinrich
-     *    ↓
-     * Heinrich Himmler
+     * "Wilhelm" → "Wilhelm Burgdorf"
+     * "Heinrich" → "Heinrich Himmler"
      */
 
     for (const personaName of Object.values(personas)) {
@@ -68,18 +85,6 @@ function resolvePersonaName(inputName) {
         if (!fullName) {
             continue;
         }
-
-        /*
-         * Correspondance exacte avec le nom complet.
-         */
-
-        if (fullName.toLowerCase() === wantedName) {
-            return fullName;
-        }
-
-        /*
-         * Correspondance avec le prénom uniquement.
-         */
 
         const firstName = fullName
             .split(/\s+/)[0]
@@ -173,7 +178,7 @@ async function processTupperMessage() {
     try {
 
         /*
-         * Résout le prénom vers le vrai nom de Persona.
+         * Transforme le prénom en nom complet.
          *
          * Wilhelm
          * → Wilhelm Burgdorf
@@ -199,17 +204,13 @@ async function processTupperMessage() {
         /*
          * Sélection automatique de la Persona.
          *
-         * On utilise exactement la méthode
-         * de l'ancienne version qui fonctionnait.
+         * C'est exactement le système
+         * de l'ancienne version fonctionnelle.
          */
 
         const personaFound = await autoSelectPersona(
             resolvedPersonaName
         );
-
-        /*
-         * Persona inexistante.
-         */
 
         if (!personaFound) {
 
@@ -319,6 +320,7 @@ function setupKeyboardListener() {
 
             /*
              * Ignore les raccourcis.
+
              */
 
             if (
@@ -370,10 +372,8 @@ function setupKeyboardListener() {
             }
 
             /*
-             * IMPORTANT :
-             *
-             * On ne bloque que si le prénom correspond
-             * réellement à une Persona.
+             * Vérifie que le nom/prénom correspond
+             * à une Persona.
              */
 
             if (!resolvePersonaName(parsed.personaName)) {
@@ -448,8 +448,8 @@ function setupSendButtonListener() {
             }
 
             /*
-             * Ne bloque que si le prénom correspond
-             * réellement à une Persona.
+             * Vérifie que le nom/prénom correspond
+             * à une Persona.
              */
 
             if (!resolvePersonaName(parsed.personaName)) {
