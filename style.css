@@ -1,119 +1,360 @@
 /* =========================================================
    SILLYTUPPER
-   SillyTavern Extension
+   CONTROL PANEL
    ========================================================= */
 
-
-/* =========================================================
-   VARIABLES
-   ========================================================= */
-
-:root {
-    --sillytupper-bg: #111111;
-    --sillytupper-text: #ffffff;
-    --sillytupper-muted: #999999;
-    --sillytupper-border: #2a2a2a;
-    --sillytupper-accent: #7c5cff;
+#sillytupper-panel {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    background: #17171a;
+    border: 1px solid #2b2b30;
+    color: #ffffff;
 }
 
 
 /* =========================================================
-   CONTAINER
+   HEADER
    ========================================================= */
 
-.sillytupper-container {
+.sillytupper-header {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
-
-
-/* =========================================================
-   TITLE
-   ========================================================= */
 
 .sillytupper-title {
-    font-size: 1.1em;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.sillytupper-subtitle {
+    margin-top: 3px;
+    font-size: 12px;
+    color: #99999f;
+}
+
+.sillytupper-divider {
+    height: 1px;
+    margin: 13px 0;
+    background: #2b2b30;
+}
+
+
+/* =========================================================
+   SWITCH
+   ========================================================= */
+
+.sillytupper-switch {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.sillytupper-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.sillytupper-switch span {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    border-radius: 999px;
+    background: #3a3a40;
+    transition: 0.2s;
+}
+
+.sillytupper-switch span::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    border-radius: 50%;
+    background: #ffffff;
+    transition: 0.2s;
+}
+
+.sillytupper-switch input:checked + span {
+    background: #7c5cff;
+}
+
+.sillytupper-switch input:checked + span::before {
+    transform: translateX(18px);
+}
+
+
+/* =========================================================
+   TUPPER LIST
+   ========================================================= */
+
+.sillytupper-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sillytupper-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    background: #202024;
+    border: 1px solid #2c2c31;
+}
+
+.sillytupper-item.sillytupper-disabled {
+    opacity: 0.45;
+}
+
+.sillytupper-item-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.sillytupper-persona {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
     font-weight: 600;
-    color: var(--sillytupper-text);
+}
+
+.sillytupper-trigger {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #99999f;
+}
+
+.sillytupper-trigger strong {
+    color: #b9aaff;
+    font-weight: 600;
 }
 
 
 /* =========================================================
-   DESCRIPTION
+   ACTIONS
    ========================================================= */
 
-.sillytupper-description {
-    font-size: 0.9em;
-    color: var(--sillytupper-muted);
-    line-height: 1.4;
+.sillytupper-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.sillytupper-item-actions button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #aaaaaf;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.sillytupper-item-actions button:hover {
+    background: #2d2d32;
+    color: #ffffff;
+}
+
+.sillytupper-delete:hover {
+    color: #ff5f56 !important;
 }
 
 
 /* =========================================================
-   INPUT
+   EMPTY
    ========================================================= */
 
+.sillytupper-empty {
+    padding: 20px 10px;
+    text-align: center;
+    color: #88888f;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   ADD BUTTON
+   ========================================================= */
+
+.sillytupper-add {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 9px;
+    background: #7c5cff;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sillytupper-add:hover {
+    opacity: 0.9;
+}
+
+.sillytupper-add:active {
+    transform: scale(0.98);
+}
+
+
+/* =========================================================
+   OVERLAY
+   ========================================================= */
+
+.sillytupper-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+
+/* =========================================================
+   DIALOG
+   ========================================================= */
+
+.sillytupper-dialog {
+    width: min(430px, 100%);
+    box-sizing: border-box;
+    padding: 18px;
+    border-radius: 14px;
+    background: #18181c;
+    border: 1px solid #303036;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.sillytupper-dialog-title {
+    margin-bottom: 18px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   FORM
+   ========================================================= */
+
+.sillytupper-label {
+    display: block;
+    margin: 12px 0 6px;
+    font-size: 12px;
+    color: #aaaab0;
+}
+
+.sillytupper-select,
 .sillytupper-input {
     width: 100%;
     box-sizing: border-box;
-
-    padding: 8px 10px;
-
-    border: 1px solid var(--sillytupper-border);
-    border-radius: 8px;
-
-    background: var(--sillytupper-bg);
-    color: var(--sillytupper-text);
-
+    padding: 10px 11px;
+    border: 1px solid #35353b;
+    border-radius: 9px;
     outline: none;
-}
-
-
-/* =========================================================
-   FOCUS
-   ========================================================= */
-
-.sillytupper-input:focus {
-    border-color: var(--sillytupper-accent);
-}
-
-
-/* =========================================================
-   BUTTON
-   ========================================================= */
-
-.sillytupper-button {
-    padding: 8px 12px;
-
-    border: 0;
-    border-radius: 8px;
-
-    background: var(--sillytupper-accent);
+    background: #222227;
     color: #ffffff;
+    font-size: 14px;
+}
 
-    cursor: pointer;
-
-    transition:
-        opacity 0.15s ease,
-        transform 0.15s ease;
+.sillytupper-select:focus,
+.sillytupper-input:focus {
+    border-color: #7c5cff;
 }
 
 
-.sillytupper-button:hover {
+/* =========================================================
+   PREVIEW
+   ========================================================= */
+
+.sillytupper-preview {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #111114;
+    color: #8d8d94;
+    font-size: 12px;
+}
+
+.sillytupper-preview code {
+    display: block;
+    margin-top: 5px;
+    color: #b9aaff;
+    font-family: monospace;
+}
+
+
+/* =========================================================
+   DIALOG BUTTONS
+   ========================================================= */
+
+.sillytupper-dialog-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.sillytupper-dialog-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: 0;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sillytupper-cancel {
+    background: #2b2b30;
+    color: #ffffff;
+}
+
+.sillytupper-save {
+    background: #7c5cff;
+    color: #ffffff;
+}
+
+.sillytupper-cancel:hover,
+.sillytupper-save:hover {
     opacity: 0.9;
 }
 
 
-.sillytupper-button:active {
-    transform: scale(0.97);
-}
-
-
 /* =========================================================
-   HIDDEN
+   MOBILE
    ========================================================= */
 
-.sillytupper-hidden {
-    display: none !important;
+@media (max-width: 600px) {
+
+    #sillytupper-panel {
+        padding: 12px;
+        border-radius: 10px;
+    }
+
+    .sillytupper-dialog {
+        padding: 16px;
+    }
+
+    .sillytupper-item {
+        padding: 10px;
+    }
 }
