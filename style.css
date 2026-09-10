@@ -1,0 +1,119 @@
+/* =========================================================
+   SILLYTUPPER
+   SillyTavern Extension
+   ========================================================= */
+
+
+/* =========================================================
+   VARIABLES
+   ========================================================= */
+
+:root {
+    --sillytupper-bg: #111111;
+    --sillytupper-text: #ffffff;
+    --sillytupper-muted: #999999;
+    --sillytupper-border: #2a2a2a;
+    --sillytupper-accent: #7c5cff;
+}
+
+
+/* =========================================================
+   CONTAINER
+   ========================================================= */
+
+.sillytupper-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+
+/* =========================================================
+   TITLE
+   ========================================================= */
+
+.sillytupper-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--sillytupper-text);
+}
+
+
+/* =========================================================
+   DESCRIPTION
+   ========================================================= */
+
+.sillytupper-description {
+    font-size: 0.9em;
+    color: var(--sillytupper-muted);
+    line-height: 1.4;
+}
+
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+
+.sillytupper-input {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 8px 10px;
+
+    border: 1px solid var(--sillytupper-border);
+    border-radius: 8px;
+
+    background: var(--sillytupper-bg);
+    color: var(--sillytupper-text);
+
+    outline: none;
+}
+
+
+/* =========================================================
+   FOCUS
+   ========================================================= */
+
+.sillytupper-input:focus {
+    border-color: var(--sillytupper-accent);
+}
+
+
+/* =========================================================
+   BUTTON
+   ========================================================= */
+
+.sillytupper-button {
+    padding: 8px 12px;
+
+    border: 0;
+    border-radius: 8px;
+
+    background: var(--sillytupper-accent);
+    color: #ffffff;
+
+    cursor: pointer;
+
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease;
+}
+
+
+.sillytupper-button:hover {
+    opacity: 0.9;
+}
+
+
+.sillytupper-button:active {
+    transform: scale(0.97);
+}
+
+
+/* =========================================================
+   HIDDEN
+   ========================================================= */
+
+.sillytupper-hidden {
+    display: none !important;
+}
