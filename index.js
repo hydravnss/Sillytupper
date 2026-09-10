@@ -1,6 +1,5 @@
 import { extension_settings } from '../../../extensions.js';
-import { power_user } from '../../../power-user.js';
-import { setUserAvatar } from '../../../personas.js';
+import { autoSelectPersona } from '../../../personas.js';
 import { sendTextareaMessage } from '../../../script.js';
 
 
@@ -25,56 +24,13 @@ function loadSettings() {
 
 
 /* =========================================================
-   FIND PERSONA
-   ========================================================= */
-
-function findPersonaByName(name) {
-    if (!power_user?.personas) {
-        return null;
-    }
-
-    const target = String(name)
-        .trim()
-        .toLowerCase();
-
-    if (!target) {
-        return null;
-    }
-
-    for (const [avatarId, personaName] of Object.entries(power_user.personas)) {
-        if (!personaName) {
-            continue;
-        }
-
-        if (
-            String(personaName)
-                .trim()
-                .toLowerCase() === target
-        ) {
-            return avatarId;
-        }
-    }
-
-    return null;
-}
-
-
-/* =========================================================
-   PARSE TUPPER MESSAGE
+   PARSE TUPPER
    ========================================================= */
 
 function parseTupperMessage(text) {
     if (!text) {
         return null;
     }
-
-    /*
-     * Format :
-     *
-     * Hagen: Bonjour
-     *
-     * Remus Lupin: Bonjour
-     */
 
     const match = text.match(/^([^:\n]{1,60}):\s*([\s\S]*)$/);
 
@@ -97,10 +53,11 @@ function parseTupperMessage(text) {
 
 
 /* =========================================================
-   PROCESS TUPPER MESSAGE
+   PROCESS MESSAGE
    ========================================================= */
 
 async function processTupperMessage() {
+
     if (isProcessing) {
         return false;
     }
@@ -127,51 +84,46 @@ async function processTupperMessage() {
         return false;
     }
 
-    /*
-     * Recherche de la Persona.
-     */
-
-    const avatarId = findPersonaByName(parsed.personaName);
-
-    /*
-     * Persona inconnue :
-     * comportement normal de SillyTavern.
-     */
-
-    if (!avatarId) {
-        console.log(
-            `[SillyTupper] Persona inconnue : ${parsed.personaName}`
-        );
-
-        return false;
-    }
-
     isProcessing = true;
 
     try {
 
         console.log(
-            `[SillyTupper] Activation de la Persona : ${parsed.personaName}`
+            `[SillyTupper] Recherche de la Persona : ${parsed.personaName}`
         );
 
         /*
-         * Change la Persona.
+         * Utilise directement le système natif
+         * de sélection de Persona de SillyTavern.
          */
-
-        await setUserAvatar(avatarId, {
-            toastPersonaNameChange: true,
-        });
+        const personaFound = await autoSelectPersona(
+            parsed.personaName
+        );
 
         /*
-         * Supprime le préfixe.
-         *
-         * Hagen: Bonjour
-         *
-         * devient :
-         *
-         * Bonjour
+         * Persona inconnue :
+         * on ne bloque pas SillyTavern.
          */
+        if (!personaFound) {
 
+            console.log(
+                `[SillyTupper] Persona inconnue : ${parsed.personaName}`
+            );
+
+            return false;
+        }
+
+        console.log(
+            `[SillyTupper] Persona sélectionnée : ${parsed.personaName}`
+        );
+
+        /*
+         * Retire :
+         *
+         * Nom:
+         *
+         * du message.
+         */
         textarea.value = parsed.message;
 
         textarea.dispatchEvent(
@@ -181,20 +133,18 @@ async function processTupperMessage() {
         );
 
         /*
-         * Laisse SillyTavern enregistrer
-         * le changement de Persona.
+         * Laisse SillyTavern mettre à jour
+         * le champ avant l'envoi.
          */
-
         await new Promise(resolve => setTimeout(resolve, 0));
 
         /*
          * Envoie le message.
          */
-
         await sendTextareaMessage();
 
         console.log(
-            `[SillyTupper] Message envoyé avec la Persona "${parsed.personaName}".`
+            `[SillyTupper] Message envoyé avec "${parsed.personaName}".`
         );
 
         return true;
@@ -202,14 +152,14 @@ async function processTupperMessage() {
     } catch (error) {
 
         console.error(
-            '[SillyTupper] Erreur lors de l\'envoi :',
+            '[SillyTupper] Erreur :',
             error
         );
 
         /*
-         * Restaure le message original.
+         * Restaure le message original
+         * si quelque chose échoue.
          */
-
         textarea.value = originalText;
 
         textarea.dispatchEvent(
@@ -229,7 +179,7 @@ async function processTupperMessage() {
 
 
 /* =========================================================
-   KEYBOARD — ENTER
+   ENTER
    ========================================================= */
 
 function setupKeyboardListener() {
@@ -238,10 +188,6 @@ function setupKeyboardListener() {
         'keydown',
         async (event) => {
 
-            /*
-             * Seulement Enter.
-             */
-
             if (event.key !== 'Enter') {
                 return;
             }
@@ -249,15 +195,13 @@ function setupKeyboardListener() {
             /*
              * Shift + Enter = nouvelle ligne.
              */
-
             if (event.shiftKey) {
                 return;
             }
 
             /*
-             * Ignore les raccourcis clavier.
+             * Ignore les raccourcis.
              */
-
             if (
                 event.ctrlKey ||
                 event.altKey ||
@@ -266,16 +210,13 @@ function setupKeyboardListener() {
                 return;
             }
 
-            const textarea = document.getElementById('send_textarea');
+            const textarea = document.getElementById(
+                'send_textarea'
+            );
 
             if (!textarea) {
                 return;
             }
-
-            /*
-             * Vérifie que l'événement vient
-             * du champ de texte.
-             */
 
             if (event.target !== textarea) {
                 return;
@@ -287,39 +228,28 @@ function setupKeyboardListener() {
                 return;
             }
 
-            /*
-             * Vérifie le format :
-             *
-             * Nom: message
-             */
-
             const parsed = parseTupperMessage(text);
 
+            /*
+             * Message normal :
+             * SillyTavern s'en occupe.
+             */
             if (!parsed) {
                 return;
             }
 
             /*
-             * Vérifie que la Persona existe.
+             * Vérifie que la Persona existe
+             * avant de bloquer l'envoi natif.
+             *
+             * On utilise autoSelectPersona dans
+             * processTupperMessage.
+             *
+             * Pour éviter de bloquer une Persona
+             * inconnue, on tente d'abord la sélection.
              */
-
-            const avatarId = findPersonaByName(parsed.personaName);
-
-            if (!avatarId) {
-                return;
-            }
-
-            /*
-             * Bloque l'envoi normal
-             * de SillyTavern.
-             */
-
             event.preventDefault();
             event.stopImmediatePropagation();
-
-            /*
-             * Lance SillyTupper.
-             */
 
             await processTupperMessage();
 
@@ -339,13 +269,17 @@ function setupSendButtonListener() {
         'click',
         async (event) => {
 
-            const button = event.target.closest('#send_but');
+            const button = event.target.closest(
+                '#send_but'
+            );
 
             if (!button) {
                 return;
             }
 
-            const textarea = document.getElementById('send_textarea');
+            const textarea = document.getElementById(
+                'send_textarea'
+            );
 
             if (!textarea) {
                 return;
@@ -357,37 +291,22 @@ function setupSendButtonListener() {
                 return;
             }
 
-            /*
-             * Vérifie le format Tupper.
-             */
-
             const parsed = parseTupperMessage(text);
 
+            /*
+             * Message normal :
+             * SillyTavern s'en occupe.
+             */
             if (!parsed) {
                 return;
             }
 
             /*
-             * Vérifie que la Persona existe.
+             * On laisse processTupperMessage
+             * gérer la Persona.
              */
-
-            const avatarId = findPersonaByName(parsed.personaName);
-
-            if (!avatarId) {
-                return;
-            }
-
-            /*
-             * Empêche SillyTavern d'envoyer
-             * le message original.
-             */
-
             event.preventDefault();
             event.stopImmediatePropagation();
-
-            /*
-             * Lance SillyTupper.
-             */
 
             await processTupperMessage();
 
