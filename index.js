@@ -1,7 +1,8 @@
 import { extension_settings } from '../../../extensions.js';
-import { autoSelectPersona } from '../../../personas.js';
+import { setUserAvatar } from '../../../personas.js';
 import { power_user } from '../../../power-user.js';
 import { sendTextareaMessage } from '../../../../script.js';
+
 
 const extensionName = 'SillyTupper';
 
@@ -13,6 +14,7 @@ let isProcessing = false;
    ========================================================= */
 
 function loadSettings() {
+
     if (!extension_settings[extensionName]) {
         extension_settings[extensionName] = {};
     }
@@ -29,51 +31,73 @@ function loadSettings() {
 
 function findPersona(shortName) {
 
-    const search = shortName.trim().toLowerCase();
+    const wanted = shortName
+        .trim()
+        .toLowerCase();
 
-    if (!search) {
+    if (!wanted) {
         return null;
     }
+
+    /*
+     * Les Personas de SillyTavern sont :
+     *
+     * avatarId -> nom
+     */
 
     const personas = power_user.personas;
 
     if (!personas) {
-        console.error('[SillyTupper] Personas indisponibles.');
         return null;
     }
 
-    for (const persona of Object.values(personas)) {
+    /*
+     * Cherche le prénom.
+     */
 
-        const name = String(persona).trim();
+    for (const [avatarId, personaName] of Object.entries(personas)) {
 
-        if (!name) {
+        if (!personaName) {
             continue;
         }
 
-        /*
-         * NOM COMPLET :
-         *
-         * Heinrich Himmler
-         */
+        const fullName = String(personaName).trim();
 
-        if (name.toLowerCase() === search) {
-            return name;
+        if (!fullName) {
+            continue;
         }
 
+        const firstName = fullName
+            .split(/\s+/)[0]
+            .trim()
+            .toLowerCase();
+
         /*
-         * PRÉNOM :
+         * Exemple :
          *
          * Heinrich
          * ↓
          * Heinrich Himmler
          */
 
-        const firstName = name
-            .split(/\s+/)[0]
-            .toLowerCase();
+        if (firstName === wanted) {
 
-        if (firstName === search) {
-            return name;
+            return {
+                avatarId: avatarId,
+                name: fullName,
+            };
+        }
+
+        /*
+         * Permet aussi le nom complet.
+         */
+
+        if (fullName.toLowerCase() === wanted) {
+
+            return {
+                avatarId: avatarId,
+                name: fullName,
+            };
         }
     }
 
@@ -91,7 +115,9 @@ function parseTupperMessage(text) {
         return null;
     }
 
-    const match = text.match(/^([^:\n]+):\s*([\s\S]+)$/);
+    const match = text.match(
+        /^([^:\n]{1,60}):\s*([\s\S]*)$/
+    );
 
     if (!match) {
         return null;
@@ -112,7 +138,7 @@ function parseTupperMessage(text) {
 
 
 /* =========================================================
-   SEND
+   PROCESS
    ========================================================= */
 
 async function processTupperMessage() {
@@ -121,11 +147,9 @@ async function processTupperMessage() {
         return false;
     }
 
-    if (!extension_settings[extensionName]?.enabled) {
-        return false;
-    }
-
-    const textarea = document.getElementById('send_textarea');
+    const textarea = document.getElementById(
+        'send_textarea'
+    );
 
     if (!textarea) {
         return false;
@@ -133,17 +157,26 @@ async function processTupperMessage() {
 
     const originalText = textarea.value;
 
-    const parsed = parseTupperMessage(originalText);
+    const parsed = parseTupperMessage(
+        originalText
+    );
 
     if (!parsed) {
         return false;
     }
 
-    const personaName = findPersona(parsed.name);
+    /*
+     * Cherche la Persona.
+     */
 
-    if (!personaName) {
-        console.log(
-            `[SillyTupper] Persona "${parsed.name}" introuvable.`
+    const persona = findPersona(
+        parsed.name
+    );
+
+    if (!persona) {
+
+        console.warn(
+            `[SillyTupper] Persona introuvable : ${parsed.name}`
         );
 
         return false;
@@ -154,33 +187,31 @@ async function processTupperMessage() {
     try {
 
         console.log(
-            `[SillyTupper] ${parsed.name} → ${personaName}`
+            `[SillyTupper] ${parsed.name} → ${persona.name}`
         );
 
         /*
-         * Sélectionne la Persona.
+         * Sélection DIRECTE par avatar ID.
+         *
+         * C'est le même mécanisme natif que SillyTavern
+         * utilise pour changer de Persona.
          */
 
-        const selected = await autoSelectPersona(
-            personaName
+        await setUserAvatar(
+            persona.avatarId,
+            {
+                toastPersonaNameChange: false,
+            }
         );
 
-        if (!selected) {
-            console.error(
-                `[SillyTupper] Impossible de sélectionner ${personaName}`
-            );
-
-            return false;
-        }
-
         /*
-         * ENLÈVE LE PRÉNOM DU MESSAGE.
+         * Retire :
          *
-         * Heinrich: Bonjour
+         * Heinrich:
          *
-         * devient :
+         * et garde :
          *
-         * Bonjour
+         * test
          */
 
         textarea.value = parsed.message;
@@ -192,20 +223,21 @@ async function processTupperMessage() {
         );
 
         /*
-         * Laisse SillyTavern appliquer
-         * le changement de Persona.
+         * Laisse ST appliquer la Persona.
          */
 
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(
+            resolve => setTimeout(resolve, 0)
+        );
 
         /*
-         * Envoie le message.
+         * Envoi normal SillyTavern.
          */
 
         await sendTextareaMessage();
 
         console.log(
-            `[SillyTupper] Envoyé en tant que ${personaName}`
+            `[SillyTupper] Envoyé sous ${persona.name}`
         );
 
         return true;
@@ -230,7 +262,6 @@ async function processTupperMessage() {
     } finally {
 
         isProcessing = false;
-
     }
 }
 
@@ -243,7 +274,7 @@ function setupKeyboardListener() {
 
     document.addEventListener(
         'keydown',
-        async (event) => {
+        async event => {
 
             if (event.key !== 'Enter') {
                 return;
@@ -262,7 +293,11 @@ function setupKeyboardListener() {
                 'send_textarea'
             );
 
-            if (!textarea || event.target !== textarea) {
+            if (!textarea) {
+                return;
+            }
+
+            if (event.target !== textarea) {
                 return;
             }
 
@@ -275,13 +310,20 @@ function setupKeyboardListener() {
             }
 
             /*
-             * On ne bloque l'envoi que si le prénom
-             * correspond réellement à une Persona.
+             * Vérifie la Persona.
              */
 
-            if (!findPersona(parsed.name)) {
+            const persona = findPersona(
+                parsed.name
+            );
+
+            if (!persona) {
                 return;
             }
+
+            /*
+             * BLOQUE l'envoi natif.
+             */
 
             event.preventDefault();
             event.stopPropagation();
@@ -303,9 +345,11 @@ function setupSendButtonListener() {
 
     document.addEventListener(
         'click',
-        async (event) => {
+        async event => {
 
-            const button = event.target.closest('#send_but');
+            const button = event.target.closest(
+                '#send_but'
+            );
 
             if (!button) {
                 return;
@@ -327,9 +371,17 @@ function setupSendButtonListener() {
                 return;
             }
 
-            if (!findPersona(parsed.name)) {
+            const persona = findPersona(
+                parsed.name
+            );
+
+            if (!persona) {
                 return;
             }
+
+            /*
+             * BLOQUE l'envoi natif.
+             */
 
             event.preventDefault();
             event.stopPropagation();
@@ -349,15 +401,30 @@ function setupSendButtonListener() {
 
 function initialize() {
 
-    loadSettings();
+    try {
 
-    setupKeyboardListener();
+        loadSettings();
 
-    setupSendButtonListener();
+        setupKeyboardListener();
 
-    console.log(
-        '[SillyTupper] Chargé.'
-    );
+        setupSendButtonListener();
+
+        console.log(
+            '[SillyTupper] Extension chargée.'
+        );
+
+        console.log(
+            '[SillyTupper] Personas disponibles :',
+            power_user.personas
+        );
+
+    } catch (error) {
+
+        console.error(
+            '[SillyTupper] Erreur d\'initialisation :',
+            error
+        );
+    }
 }
 
 
