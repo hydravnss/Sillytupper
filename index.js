@@ -35,9 +35,7 @@ function saveSettings() {
    ========================================================= */
 function getPersonas() {
     const personas = power_user?.personas;
-    if (!personas || typeof personas !== 'object') {
-        return [];
-    }
+    if (!personas || typeof personas !== 'object') return [];
     return Object.entries(personas).map(([avatarId, name]) => ({
         avatarId,
         name: String(name).trim()
@@ -51,7 +49,7 @@ function normalizeTrigger(trigger) {
     return String(trigger || '')
         .trim()
         .toLowerCase()
-        .replace(/\s+/g, ' '); // normalise les espaces multiples
+        .replace(/\s+/g, ' ');
 }
 
 function findTupperByTrigger(trigger) {
@@ -64,19 +62,12 @@ function findTupperByTrigger(trigger) {
     }) || null;
 }
 
-function findTupperById(id) {
-    return extension_settings[extensionName].tuppers.find(
-        tupper => tupper.id === id
-    );
-}
-
 /* =========================================================
    PARSE MESSAGE
    ========================================================= */
 function parseTupperMessage(text) {
     if (!text) return null;
 
-    // Format attendu : Trigger: message
     const match = text.match(/^([^:\n]{1,100}):\s*([\s\S]*)$/);
     if (!match) return null;
 
@@ -84,15 +75,18 @@ function parseTupperMessage(text) {
     const message = match[2].trim();
 
     if (!trigger || !message) return null;
-
     return { trigger, message };
 }
 
 /* =========================================================
-   PROCESS TUPPER
+   PROCESS TUPPER (version renforcée PC)
    ========================================================= */
 async function processTupperMessage() {
-    if (isProcessing) return false;
+    if (isProcessing) {
+        console.log('[SillyTupper] Déjà en cours de traitement, ignore.');
+        return false;
+    }
+
     if (!extension_settings[extensionName]?.enabled) return false;
 
     const textarea = document.getElementById('send_textarea');
@@ -100,36 +94,35 @@ async function processTupperMessage() {
 
     const originalText = textarea.value;
     const parsed = parseTupperMessage(originalText);
+
     if (!parsed) return false;
 
     const tupper = findTupperByTrigger(parsed.trigger);
 
-    // Aucun Tupper trouvé → comportement normal de SillyTavern
     if (!tupper) {
-        console.log(`[SillyTupper] Aucun Tupper trouvé pour le trigger : "${parsed.trigger}"`);
+        console.log(`[SillyTupper] Aucun Tupper pour : "${parsed.trigger}"`);
         return false;
     }
 
     isProcessing = true;
 
     try {
-        console.log(
-            `[SillyTupper] Trigger détecté : "${parsed.trigger}" → Persona : "${tupper.personaName}" (avatarId: ${tupper.avatarId})`
-        );
+        console.log(`[SillyTupper] → Trigger "${parsed.trigger}" | Persona : "${tupper.personaName}"`);
 
-        // Change la persona
+        // 1. Change la persona
         await setUserAvatar(tupper.avatarId, {
             toastPersonaNameChange: false
         });
 
-        // Retire le trigger du message
+        // 2. Retire le trigger
         textarea.value = parsed.message;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.dispatchEvent(new Event('change', { bubbles: true }));
 
-        // Laisse un petit temps à SillyTavern pour appliquer le changement de persona
-        await new Promise(resolve => setTimeout(resolve, 30));
+        // 3. Délai plus long et plus fiable (surtout utile sur PC)
+        await new Promise(resolve => setTimeout(resolve, 80));
 
-        // Envoi du message
+        // 4. Envoi
         await sendTextareaMessage();
 
         console.log(`[SillyTupper] Message envoyé sous : ${tupper.personaName}`);
@@ -137,24 +130,30 @@ async function processTupperMessage() {
 
     } catch (error) {
         console.error('[SillyTupper] Erreur :', error);
-
-        // Restaure le texte original en cas d'erreur
         textarea.value = originalText;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         return false;
 
     } finally {
-        isProcessing = false;
+        // Petit délai avant de réautoriser un nouvel envoi (évite les doubles)
+        setTimeout(() => {
+            isProcessing = false;
+        }, 150);
     }
 }
 
 /* =========================================================
-   ENTER
+   INTERCEPTION ENTER (renforcée)
    ========================================================= */
 function setupKeyboardListener() {
     document.addEventListener('keydown', async (event) => {
         if (event.key !== 'Enter') return;
         if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+        if (isProcessing) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
 
         const textarea = document.getElementById('send_textarea');
         if (!textarea || event.target !== textarea) return;
@@ -165,19 +164,26 @@ function setupKeyboardListener() {
         const tupper = findTupperByTrigger(parsed.trigger);
         if (!tupper) return;
 
+        // Bloque complètement l'événement original
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
 
         await processTupperMessage();
-    }, true);
+    }, true); // capture = true
 }
 
 /* =========================================================
-   SEND BUTTON
+   INTERCEPTION BOUTON ENVOYER (renforcée)
    ========================================================= */
 function setupSendButtonListener() {
     document.addEventListener('click', async (event) => {
+        if (isProcessing) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
+
         const button = event.target.closest('#send_but');
         if (!button) return;
 
@@ -239,9 +245,7 @@ function renderTupperList() {
 
         item.innerHTML = `
             <div class="sillytupper-item-info">
-                <div class="sillytupper-persona">
-                    ${escapeHtml(tupper.personaName)}
-                </div>
+                <div class="sillytupper-persona">${escapeHtml(tupper.personaName)}</div>
                 <div class="sillytupper-trigger">
                     Trigger : <strong>${escapeHtml(tupper.trigger)}</strong>
                 </div>
@@ -255,25 +259,20 @@ function renderTupperList() {
             </div>
         `;
 
-        // Toggle
         item.querySelector('.sillytupper-toggle').addEventListener('click', () => {
             tupper.enabled = tupper.enabled === false;
             saveSettings();
             renderTupperList();
         });
 
-        // Edit
         item.querySelector('.sillytupper-edit').addEventListener('click', () => {
             showTupperDialog(tupper);
         });
 
-        // Delete
         item.querySelector('.sillytupper-delete').addEventListener('click', () => {
             if (!confirm(`Supprimer le Tupper "${tupper.trigger}" ?`)) return;
-
             extension_settings[extensionName].tuppers =
-                extension_settings[extensionName].tuppers.filter(item => item.id !== tupper.id);
-
+                extension_settings[extensionName].tuppers.filter(t => t.id !== tupper.id);
             saveSettings();
             renderTupperList();
         });
@@ -366,19 +365,16 @@ function showTupperDialog(existingTupper = null) {
 
         <label class="sillytupper-label">Persona</label>
         <select id="sillytupper-persona-select" class="sillytupper-select">
-            ${personas.map(persona => `
-                <option value="${escapeHtml(persona.avatarId)}"
-                    ${persona.avatarId === selectedAvatar ? 'selected' : ''}>
-                    ${escapeHtml(persona.name)}
+            ${personas.map(p => `
+                <option value="${escapeHtml(p.avatarId)}" ${p.avatarId === selectedAvatar ? 'selected' : ''}>
+                    ${escapeHtml(p.name)}
                 </option>
             `).join('')}
         </select>
 
         <label class="sillytupper-label">Trigger</label>
-        <input id="sillytupper-trigger-input" class="sillytupper-input"
-               type="text" maxlength="50"
-               placeholder="Exemple : Heinrich"
-               value="${escapeHtml(selectedTrigger)}">
+        <input id="sillytupper-trigger-input" class="sillytupper-input" type="text" maxlength="50"
+               placeholder="Exemple : Heinrich" value="${escapeHtml(selectedTrigger)}">
 
         <div class="sillytupper-preview">
             <span>Utilisation :</span>
@@ -394,16 +390,11 @@ function showTupperDialog(existingTupper = null) {
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
 
-    // Cancel
-    dialog.querySelector('#sillytupper-cancel').addEventListener('click', () => {
-        overlay.remove();
-    });
+    dialog.querySelector('#sillytupper-cancel').addEventListener('click', () => overlay.remove());
 
-    // Save
     dialog.querySelector('#sillytupper-save').addEventListener('click', () => {
         const select = dialog.querySelector('#sillytupper-persona-select');
         const triggerInput = dialog.querySelector('#sillytupper-trigger-input');
-
         const avatarId = select.value;
         const trigger = triggerInput.value.trim();
 
@@ -412,10 +403,9 @@ function showTupperDialog(existingTupper = null) {
             return;
         }
 
-        // Empêche les triggers en double
-        const duplicate = extension_settings[extensionName].tuppers.find(tupper =>
-            tupper.id !== existingTupper?.id &&
-            normalizeTrigger(tupper.trigger) === normalizeTrigger(trigger)
+        const duplicate = extension_settings[extensionName].tuppers.find(t =>
+            t.id !== existingTupper?.id &&
+            normalizeTrigger(t.trigger) === normalizeTrigger(trigger)
         );
 
         if (duplicate) {
@@ -423,7 +413,7 @@ function showTupperDialog(existingTupper = null) {
             return;
         }
 
-        const persona = personas.find(item => item.avatarId === avatarId);
+        const persona = personas.find(p => p.avatarId === avatarId);
         if (!persona) return;
 
         if (existingTupper) {
@@ -457,15 +447,12 @@ function initialize() {
         createPanel();
         setupKeyboardListener();
         setupSendButtonListener();
-        console.log('[SillyTupper] Extension chargée avec succès.');
+        console.log('[SillyTupper] Extension chargée (version compatible PC + Mobile)');
     } catch (error) {
         console.error('[SillyTupper] Erreur d\'initialisation :', error);
     }
 }
 
-/* =========================================================
-   START
-   ========================================================= */
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initialize, { once: true });
 } else {
